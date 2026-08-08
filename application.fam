@@ -1,0 +1,14 @@
+App(
+    appid="cpu_start",
+    name="CPU Start",
+    apptype=FlipperAppType.EXTERNAL,
+    entry_point="cpu_start_main",
+    stack_size=4 * 1024,
+    fap_icon="app.png",
+    fap_category="GPIO",
+    fap_icon_assets="assets",
+    fap_description="CPU Start - U-Boot style boot menu and fake desktop",
+    fap_author="mitten",
+    fap_weburl="https://github.com/mitten",
+    fap_version="1.0",
+)
