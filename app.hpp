@@ -1,5 +1,6 @@
 #pragma once
 #include "easy_flipper/easy_flipper.h"
+#include <notification/notification_messages.h>
 
 #define TAG         "CPU Start"
 #define VERSION     "1.0"
@@ -14,8 +15,9 @@ typedef enum {
     CPUStartMainApps = 2,
     CPUStartMainFiles = 3,
     CPUStartMainNetwork = 4,
-    CPUStartMainSettings = 5,
-    CPUStartMainBootProfiles = 6,
+    CPUStartMainTesting = 5,
+    CPUStartMainSettings = 6,
+    CPUStartMainBootProfiles = 7,
 } CPUStartMainIndex;
 
 typedef enum {
@@ -55,7 +57,26 @@ typedef enum {
     CPUStartViewFakeApp = 10,
     CPUStartViewTerminalInput = 11,
     CPUStartViewGamesMenu = 12,
+    CPUStartViewTesting = 13,
 } CPUStartView;
+
+typedef enum {
+    CPUStartTestScreen = 0,
+    CPUStartTestPhoto = 1,
+    CPUStartTestUIDemos = 2,
+    CPUStartTestInput = 3,
+    CPUStartTestTouchpad = 4,
+    CPUStartTestTouchpadABS = 5,
+    CPUStartTestKbd = 6,
+    CPUStartTestNetLEDs = 7,
+    CPUStartTestSound = 8,
+    CPUStartTestForward = 9,
+    CPUStartTestHaptic = 10,
+    CPUStartTestPNG = 11,
+    CPUStartTestGPIO = 12,
+    CPUStartTestFlipCtl = 13,
+} CPUStartTestIndex;
+#define TEST_MENU 0xFF
 
 typedef enum {
     CPUStartUBootDesktop = 0,
@@ -93,15 +114,47 @@ class CPUStartApp {
 private:
     Gui* gui = nullptr;
     ViewDispatcher* viewDispatcher = nullptr;
+    NotificationApp* notification = nullptr;
+    bool vibroActive = false;
 
     // U-Boot menu (custom view, framed box)
     View* ubootView = nullptr;
     uint8_t ubootSelected = 0;
 
-    // Submenus
-    Submenu* mainMenu = nullptr;
-    Submenu* appsMenu = nullptr;
-    Submenu* bootProfilesMenu = nullptr;
+    // Games view (custom, icon menu)
+    View* gamesView = nullptr;
+    uint8_t gamesIndex = 0;
+
+    // Apps view (custom, icon menu)
+    View* appsView = nullptr;
+    uint8_t appsIndex = 0;
+
+    // Main menu view (custom, icon menu)
+    View* mainMenuView = nullptr;
+    uint8_t mainIndex = 0;
+
+    // Boot profiles view (custom, icon menu)
+    View* bootProfilesView = nullptr;
+    uint8_t bootIndex = 0;
+
+    // Testing view (custom): 0xFF = menu, else test screen
+    View* testingView = nullptr;
+    uint8_t testScreen = TEST_MENU;
+    uint8_t testIndex = 0;
+    uint8_t testKeyCounts[6] = {0, 0, 0, 0, 0, 0};
+    char testFwd[4][24];
+    uint8_t testFwdIdx = 0;
+    uint8_t testFwdCount = 0;
+    bool testSoundOn = false;
+    float testFreq = 440.0f;
+    uint8_t testGpioSel = 0;
+    uint8_t testGpioStates[6] = {1, 0, 1, 0, 1, 0};
+    uint8_t testKbdX = 0;
+    uint8_t testKbdY = 0;
+    char testKbdBuf[20];
+    uint8_t testKbdLen = 0;
+    bool testPhotoBlack = false;
+    bool testVibrate = false;
 
     // Files / Network / Settings views (custom)
     View* filesView = nullptr;
@@ -109,9 +162,14 @@ private:
     uint8_t fileIndex = 0;
     uint8_t fileDir = 0;
     View* networkView = nullptr;
-    uint8_t netState = 0; // 0 scanning, 1 list, 2 connecting, 3 connected
+    uint8_t netState = 0; // 0 menu, 1 wifi scan, 2 wifi list, 3 wifi connect,
+                          // 4 wifi done, 5 airplane, 6 routing, 7 modem, 8 ethernet
     uint8_t netIndex = 0;
     uint32_t netStartTick = 0;
+    bool netAirplane = false;
+    bool netModemOn = true;
+    bool netEthLink = true;
+    bool netWifiOn = false;
     View* settingsView = nullptr;
     uint8_t setIndex = 0;
     uint8_t setValues[5] = {3, 0, 1, 1, 50};
@@ -129,9 +187,8 @@ private:
     uint8_t fakeAppState = 0;
     uint32_t fakeAppStartTick = 0;
     uint32_t fakeAppPrevView = CPUStartViewAppsMenu;
-
-    // Games menu
-    Submenu* gamesMenu = nullptr;
+    uint8_t radioVolume = 5;
+    uint8_t walkieVolume = 5;
 
     // Snake game
     uint8_t snakeBody[SNAKE_MAX][2];
@@ -176,6 +233,8 @@ private:
     uint8_t termCmdIndex = 0;
     char termInput[64];
     TextInput* terminalInput = nullptr;
+    const char* termPrompt = "mmc@2a31:~$";
+    uint32_t termPrevView = CPUStartViewAppsMenu;
 
     // Desktop view (custom)
     View* desktopView = nullptr;
@@ -190,8 +249,21 @@ private:
     static uint32_t callbackReturnToMain(void* context);
     static uint32_t callbackReturnToApps(void* context);
     static void callbackSubmenuMain(void* context, uint32_t index);
+    static bool callbackMainMenuInput(InputEvent* event, void* context);
+    static void callbackMainMenuDraw(Canvas* canvas, void* context);
+    static void drawMainMenu(Canvas* canvas, CPUStartApp* app);
+    static const Icon* mainIcon(uint8_t index);
+    static void drawStatusBar(Canvas* canvas, CPUStartApp* app, const char* title);
     static void callbackSubmenuApps(void* context, uint32_t index);
+    static bool callbackAppsInput(InputEvent* event, void* context);
+    static void callbackAppsDraw(Canvas* canvas, void* context);
+    static void drawAppsMenu(Canvas* canvas, CPUStartApp* app);
+    static const Icon* appsIcon(uint8_t index);
     static void callbackSubmenuBootProfiles(void* context, uint32_t index);
+    static bool callbackBootProfilesInput(InputEvent* event, void* context);
+    static void callbackBootProfilesDraw(Canvas* canvas, void* context);
+    static void drawBootProfilesMenu(Canvas* canvas, CPUStartApp* app);
+    static const Icon* bootProfileIcon(uint8_t index);
     static bool callbackUBootInput(InputEvent* event, void* context);
     static void callbackUBootDraw(Canvas* canvas, void* context);
     static bool callbackBootInput(InputEvent* event, void* context);
@@ -227,12 +299,47 @@ private:
     static void pongResetBall(CPUStartApp* app);
     static void pongUpdate(CPUStartApp* app);
     static void callbackSubmenuGames(void* context, uint32_t index);
+    static bool callbackGamesInput(InputEvent* event, void* context);
+    static void callbackGamesDraw(Canvas* canvas, void* context);
+    static void drawGamesMenu(Canvas* canvas, CPUStartApp* app);
+    static const Icon* gamesIcon(uint8_t index);
     static uint32_t callbackReturnFromFakeApp(void* context);
+    static uint32_t callbackReturnFromTerminal(void* context);
+    static bool callbackTestingInput(InputEvent* event, void* context);
+    static void callbackTestingDraw(Canvas* canvas, void* context);
+    static bool callbackTestingCustomEvent(uint32_t event, void* context);
+    static void callbackTestingExit(void* context);
+    static void drawTestingMenu(Canvas* canvas, CPUStartApp* app);
+    static void drawTestScreen(Canvas* canvas, CPUStartApp* app);
+    static void drawTestPhoto(Canvas* canvas, CPUStartApp* app);
+    static void drawTestUIDemos(Canvas* canvas, CPUStartApp* app);
+    static void drawTestInput(Canvas* canvas, CPUStartApp* app);
+    static void drawTestTouchpad(Canvas* canvas, CPUStartApp* app);
+    static void drawTestTouchpadABS(Canvas* canvas, CPUStartApp* app);
+    static void drawTestKbd(Canvas* canvas, CPUStartApp* app);
+    static void drawTestNetLEDs(Canvas* canvas, CPUStartApp* app);
+    static void drawTestSound(Canvas* canvas, CPUStartApp* app);
+    static void drawTestForward(Canvas* canvas, CPUStartApp* app);
+    static void drawTestHaptic(Canvas* canvas, CPUStartApp* app);
+    static void drawTestPNG(Canvas* canvas, CPUStartApp* app);
+    static void drawTestGPIO(Canvas* canvas, CPUStartApp* app);
+    static void testSoundStart(CPUStartApp* app);
+    static void testSoundStop(CPUStartApp* app);
+    static void hapticStart(CPUStartApp* app);
+    static void hapticStop(CPUStartApp* app);
+    static void hapticUpdate(CPUStartApp* app);
+    static const Icon* testIcon(uint8_t index);
     static bool callbackFilesInput(InputEvent* event, void* context);
     static void callbackFilesDraw(Canvas* canvas, void* context);
     static bool callbackFilesCustomEvent(uint32_t event, void* context);
     static bool callbackNetworkInput(InputEvent* event, void* context);
     static void callbackNetworkDraw(Canvas* canvas, void* context);
+    static void drawNetworkMenu(Canvas* canvas, CPUStartApp* app);
+    static void drawNetworkAirplane(Canvas* canvas, CPUStartApp* app);
+    static void drawNetworkRouting(Canvas* canvas, CPUStartApp* app);
+    static void drawNetworkModem(Canvas* canvas, CPUStartApp* app);
+    static void drawNetworkEthernet(Canvas* canvas, CPUStartApp* app);
+    static const Icon* netIcon(uint8_t index);
     static bool callbackNetworkCustomEvent(uint32_t event, void* context);
     static bool callbackSettingsInput(InputEvent* event, void* context);
     static void callbackSettingsDraw(Canvas* canvas, void* context);
